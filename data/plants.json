@@ -1,0 +1,99 @@
+[
+  {
+    "id": "nikko-kisuge",
+    "name": "ニッコウキスゲ（禅庭花）",
+    "latin": "Hemerocallis dumortieri var. esculenta",
+    "tags": [
+      "草花",
+      "黄色",
+      "初夏",
+      "地域シンボル"
+    ],
+    "region": "霧ヶ峰・車山",
+    "season": [
+      "summer"
+    ],
+    "glb": "models/nikko_kisuge.glb",
+    "facts": [
+      "霧ヶ峰の初夏を象徴する花",
+      "花は一日花"
+    ]
+  },
+  {
+    "id": "ajisai",
+    "name": "アジサイ",
+    "latin": "Hydrangea macrophylla",
+    "tags": [
+      "木本",
+      "梅雨",
+      "青〜紫"
+    ],
+    "region": "庭木・公園",
+    "season": [
+      "rainy",
+      "summer"
+    ],
+    "glb": "models/ajisai.glb",
+    "facts": [
+      "土壌pHで花色が変化",
+      "装飾花と両性花の構造"
+    ]
+  },
+  {
+    "id": "nanten",
+    "name": "ナンテン",
+    "latin": "Nandina domestica",
+    "tags": [
+      "木本",
+      "赤実",
+      "正月"
+    ],
+    "region": "生け垣",
+    "season": [
+      "winter"
+    ],
+    "glb": "models/nanten.glb",
+    "facts": [
+      "難を転ずる＝縁起物",
+      "常緑で副材に良い"
+    ]
+  },
+  {
+    "id": "susuki",
+    "name": "ススキ",
+    "latin": "Miscanthus sinensis",
+    "tags": [
+      "草花",
+      "穂もの",
+      "秋"
+    ],
+    "region": "河川敷・原っぱ",
+    "season": [
+      "autumn"
+    ],
+    "glb": "models/susuki.glb",
+    "facts": [
+      "中秋の名月の飾り",
+      "曲線の線が美しい"
+    ]
+  },
+  {
+    "id": "tsubaki",
+    "name": "ツバキ",
+    "latin": "Camellia japonica",
+    "tags": [
+      "木本",
+      "赤花",
+      "和風"
+    ],
+    "region": "里山・庭木",
+    "season": [
+      "winter",
+      "spring"
+    ],
+    "glb": "models/tsubaki.glb",
+    "facts": [
+      "光沢の葉が控え材として締まる"
+    ]
+  }
+]

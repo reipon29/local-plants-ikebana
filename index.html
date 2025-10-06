@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Local Plants Ikebana – 文化祭ベース</title>
+  <style>
+    :root{--bg:#fff;--fg:#1f2937;--muted:#6b7280;--brand:#2563eb;--line:#e5e7eb}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,"Noto Sans JP",Segoe UI,Roboto,Helvetica,Arial}
+    body{margin:0;background:var(--bg);color:var(--fg)}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line)}
+    h1{font-weight:700;font-size:18px;margin:0}
+    .wrap{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px}
+    @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+    .card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+    .card .hd{padding:10px 12px;border-bottom:1px solid var(--line);font-weight:600}
+    .card .bd{padding:12px}
+    .row{display:flex;align-items:center;gap:8px;margin:8px 0}
+    label{font-size:12px;color:var(--muted);min-width:88px}
+    select,input[type="range"]{width:100%}
+    .muted{color:var(--muted);font-size:12px}
+    .btn{appearance:none;border:1px solid var(--line);padding:8px 10px;border-radius:10px;background:#fff;cursor:pointer}
+    .btn.primary{border-color:transparent;background:var(--brand);color:#fff}
+    .list{max-height:280px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:11px;margin-right:6px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .facts{font-size:12px;line-height:1.4;color:#374151}
+    footer{padding:8px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+    canvas{display:block}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Local Plants Ikebana </h1>
+    <div style="display:flex;gap:8px">
+      <button id="basicBtn" class="btn">基本スタイル</button>
+      <button id="exportBtn" class="btn primary">プランを書き出す</button>
+    </div>
+  </header>
+  <div id="status" style="margin:8px 12px;padding:8px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#f9fafb;font-size:12px;color:#374151;display:none"></div>
+
+  <div class="wrap">
+    <!-- 左パネル：ライブラリ & 調整 -->
+    <div class="card">
+      <div class="hd">地域植物ライブラリ / 割り当て</div>
+      <div class="bd">
+        <div class="row"><label>検索</label><input id="q" type="search" placeholder="植物名/タグ/地域" /></div>
+        <div id="list" class="list"></div>
+        <hr style="margin:12px 0;border:none;border-top:1px solid var(--line)"/>
+        <div class="grid2">
+          <div>
+            <div class="row"><label>真</label><select id="selShin"></select></div>
+            <div class="row"><label>長さ</label><input id="shinLen" type="range" min="0.2" max="1.5" step="0.01"/></div>
+            <div class="row"><label>傾き°</label><input id="shinTilt" type="range" min="-20" max="70" step="1"/></div>
+            <div class="row"><label>方向°</label><input id="shinYaw" type="range" min="-90" max="90" step="1"/></div>
+          </div>
+          <div>
+            <div class="row"><label>副</label><select id="selSoe"></select></div>
+            <div class="row"><label>長さ</label><input id="soeLen" type="range" min="0.2" max="1.5" step="0.01"/></div>
+            <div class="row"><label>傾き°</label><input id="soeTilt" type="range" min="-20" max="70" step="1"/></div>
+            <div class="row"><label>方向°</label><input id="soeYaw" type="range" min="-90" max="90" step="1"/></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px"><label>控</label><select id="selHik"></select></div>
+        <div class="grid2">
+          <div class="row"><label>長さ</label><input id="hikLen" type="range" min="0.2" max="1.5" step="0.01"/></div>
+          <div class="row"><label>傾き°</label><input id="hikTilt" type="range" min="-20" max="70" step="1"/></div>
+          <div class="row"><label>方向°</label><input id="hikYaw" type="range" min="-90" max="90" step="1"/></div>
+        </div>
+        <p class="muted">豆知識はカードをクリックで表示できます。</p>
+      </div>
+    </div>
+
+    <!-- 右パネル：3Dビュー -->
+    <div class="card" style="display:flex;flex-direction:column;height: calc(100vh - 120px);min-height:520px">
+      <div class="hd">3Dビュー（GLBがあれば自動読込 / 無ければ簡易茎で代用）</div>
+      <div class="bd" style="padding:0;flex:1">
+        <div id="stage" style="width:100%;height:100%"></div>
+      </div>
+      <footer>地域・季節・文化の“学び要素”を同時に提示 → 初心者学習支援</footer>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/GLTFLoader.js';
+    import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_decoder.module.js';
+
+    // ---------- データ（models/*.glb が無ければフォールバック表示） ----------
+    const PLANTS = [
+      { id:'nikko-kisuge', name:'ニッコウキスゲ（禅庭花）', latin:'Hemerocallis dumortieri var. esculenta', tags:['草花','黄色','初夏','地域シンボル'], region:'霧ヶ峰・車山', season:['summer'], glb:'models/nikko_kisuge.glb', facts:['霧ヶ峰の初夏を象徴する花','花は一日花'] },
+      { id:'ajisai', name:'アジサイ', latin:'Hydrangea macrophylla', tags:['木本','梅雨','青〜紫'], region:'庭木・公園', season:['rainy','summer'], glb:'models/ajisai.glb', facts:['土壌pHで花色が変化','装飾花と両性花の構造'] },
+      { id:'nanten', name:'ナンテン', latin:'Nandina domestica', tags:['木本','赤実','正月'], region:'生け垣', season:['winter'], glb:'models/nanten.glb', facts:['難を転ずる＝縁起物','常緑で副材に良い'] },
+      { id:'susuki', name:'ススキ', latin:'Miscanthus sinensis', tags:['草花','穂もの','秋'], region:'河川敷・原っぱ', season:['autumn'], glb:'models/susuki.glb', facts:['中秋の名月の飾り','曲線の線が美しい'] },
+      { id:'tsubaki', name:'ツバキ', latin:'Camellia japonica', tags:['木本','赤花','和風'], region:'里山・庭木', season:['winter','spring'], glb:'models/tsubaki.glb', facts:['光沢の葉が控え材として締まる'] },
+    ];
+
+    const BASIC = {
+      shin: { len:1.0, tilt:10, yaw:10 },
+      soe:  { len:0.7, tilt:45, yaw:-20 },
+      hik:  { len:0.5, tilt:30, yaw:35 },
+    };
+    const rad = d=>d*Math.PI/180;
+
+    // ---------- Status helper ----------
+    function setStatus(msg, kind = 'info'){
+      const el = document.getElementById('status');
+      if(!el) return;
+      el.textContent = msg;
+      el.style.display = 'block';
+      // simple coloring
+      if(kind === 'ok'){ el.style.background = '#ecfdf5'; el.style.borderColor = '#34d399'; el.style.color = '#065f46'; }
+      else if(kind === 'warn'){ el.style.background = '#fffbeb'; el.style.borderColor = '#f59e0b'; el.style.color = '#92400e'; }
+      else if(kind === 'error'){ el.style.background = '#fef2f2'; el.style.borderColor = '#ef4444'; el.style.color = '#7f1d1d'; }
+      else { el.style.background = '#f9fafb'; el.style.borderColor = '#e5e7eb'; el.style.color = '#374151'; }
+    }
+
+    // ---------- UI構築 ----------
+    const byId = id=>document.getElementById(id);
+    const q = byId('q');
+    const list = byId('list');
+    const selShin = byId('selShin');
+    const selSoe  = byId('selSoe');
+    const selHik  = byId('selHik');
+    const shinLen=byId('shinLen'), shinTilt=byId('shinTilt'), shinYaw=byId('shinYaw');
+    const soeLen=byId('soeLen'),   soeTilt=byId('soeTilt'),   soeYaw=byId('soeYaw');
+    const hikLen=byId('hikLen'),   hikTilt=byId('hikTilt'),   hikYaw=byId('hikYaw');
+
+    function mountOptions(sel){
+      sel.innerHTML = '';
+      for(const p of PLANTS){
+        const o = document.createElement('option');
+        o.value=p.id; o.textContent=p.name; sel.appendChild(o);
+      }
+    }
+    mountOptions(selShin); mountOptions(selSoe); mountOptions(selHik);
+    selShin.value='nikko-kisuge'; selSoe.value='nanten'; selHik.value='susuki';
+
+    function renderList(){
+      const key = (q.value||'').trim().toLowerCase();
+      list.innerHTML='';
+      for(const p of PLANTS){
+        const text = [p.name,p.latin,p.region,p.tags.join(' ')].join(' ').toLowerCase();
+        if(key && !text.includes(key)) continue;
+        const card = document.createElement('div');
+        card.className='card';
+        const hd = document.createElement('div'); hd.className='bd';
+        hd.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div>
+            <div style="font-weight:600">${p.name}</div>
+            <div class="muted">${p.latin||''}</div>
+            <div style="margin-top:6px">${p.tags.slice(0,4).map(t=>`<span class='pill'>${t}</span>`).join('')}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn" data-role="as-shin">真にする</button>
+            <button class="btn" data-role="as-soe">副にする</button>
+            <button class="btn" data-role="as-hik">控にする</button>
+          </div>
+        </div>`;
+        const ft = document.createElement('div'); ft.className='bd facts';
+        ft.innerHTML = `<details><summary>豆知識・地域性</summary><ul>${p.facts.map(f=>`<li>${f}</li>`).join('')}</ul><div class="muted">地域：${p.region}｜季節：${p.season.join(' / ')}</div></details>`;
+        card.appendChild(hd); card.appendChild(ft); list.appendChild(card);
+        hd.querySelector('[data-role="as-shin"]').onclick=()=>{ selShin.value=p.id; syncToScene() }
+        hd.querySelector('[data-role="as-soe"]').onclick =()=>{ selSoe.value=p.id; syncToScene() }
+        hd.querySelector('[data-role="as-hik"]').onclick =()=>{ selHik.value=p.id; syncToScene() }
+      }
+    }
+    q.addEventListener('input', renderList); renderList();
+
+    // ---------- Three.js セットアップ ----------
+    const stage = byId('stage');
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    stage.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(2.2,1.6,2.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping=true;
+
+    const amb = new THREE.AmbientLight(0xffffff, 0.7); scene.add(amb);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(3,4,2); scene.add(dir);
+    const grid = new THREE.GridHelper(3, 30, 0x666666, 0x333333); scene.add(grid);
+
+    const loader = new GLTFLoader();
+    if(typeof loader.setMeshoptDecoder === 'function'){
+      loader.setMeshoptDecoder(MeshoptDecoder);
+    }
+    const gltfCache = new Map();
+
+    const tmpVec = new THREE.Vector3();
+
+    function resolveAssetUrl(path){
+      try {
+        return new URL(path, import.meta.url).href;
+      } catch (e) {
+        return path;
+      }
+    }
+
+    async function getModelClone(path){
+      const url = resolveAssetUrl(path);
+      if(!gltfCache.has(url)){
+        gltfCache.set(url, loader.loadAsync(url).catch(err=>{
+          gltfCache.delete(url);
+          throw err;
+        }));
+      }
+      const gltf = await gltfCache.get(url);
+      const src = gltf?.scene || gltf?.scenes?.[0];
+      return src ? src.clone(true) : null;
+    }
+
+    function normalizeModel(root, targetHeight){
+      if(!root) return null;
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(root);
+      if(box.isEmpty()) return root;
+      const size = box.getSize(tmpVec.set(0,0,0));
+      const center = box.getCenter(new THREE.Vector3());
+      const height = size.y || 1;
+      const scale = targetHeight / height;
+      root.traverse(node=>{
+        if(node.isMesh){
+          if(Array.isArray(node.material)){
+            node.material = node.material.map(mat=>mat?.clone ? mat.clone() : mat);
+            node.material.forEach(mat=>{ if(mat && 'side' in mat) mat.side = THREE.DoubleSide; });
+          } else if(node.material){
+            node.material = node.material.clone?.() ?? node.material;
+            if('side' in node.material) node.material.side = THREE.DoubleSide;
+          }
+        }
+      });
+      root.position.sub(center);
+      root.position.y -= (box.min.y - center.y);
+      root.scale.multiplyScalar(scale);
+      return root;
+    }
+
+    function onResize(){
+      const w = stage.clientWidth || stage.parentElement.clientWidth; 
+      const h = stage.clientHeight || 520;
+      renderer.setSize(w, h, false);
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(onResize).observe(stage); onResize();
+
+    // stem(簡易)作成
+    function makeStem(len, color){
+      const g = new THREE.CylinderGeometry(0.012*len*1.2, 0.015*len*1.5, len, 16);
+      const m = new THREE.MeshStandardMaterial({ color, roughness:0.7, metalness:0.05 });
+      const mesh = new THREE.Mesh(g, m);
+      mesh.position.y = len/2;
+      const flower = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05), new THREE.MeshStandardMaterial({color:0xc9d}));
+      flower.position.y = len + 0.03;
+      const group = new THREE.Group();
+      group.add(mesh); group.add(flower);
+      return group;
+    }
+
+    const holder = new THREE.Group(); scene.add(holder);
+
+    async function setPart(slot, plantId, len, tilt, yaw, color){
+      // slot: 'shin'|'soe'|'hik'
+      let group = holder.getObjectByName(slot);
+      if(group){ holder.remove(group); group.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose?.(); }); }
+      group = new THREE.Group(); group.name = slot;
+      const plant = PLANTS.find(p=>p.id===plantId);
+      let stem;
+      if(plant?.glb){
+        try {
+          const model = await getModelClone(plant.glb);
+          if(model){
+            stem = normalizeModel(model, len);
+            setStatus(`モデル読込OK: ${plant?.name}（${plant?.glb}）`, 'ok');
+          }
+        } catch(e){
+          console.error('GLB load failed:', plant?.glb, e);
+          setStatus(`モデル読み込みに失敗: ${plant?.name} → 簡易表示に切替（パス: ${plant?.glb}）`, 'warn');
+        }
+      }
+      if(!stem){
+        stem = makeStem(len, color);
+      }
+      // 回転：yaw(水平), tilt(縦)
+      group.rotation.y = rad(yaw);
+      const tiltGroup = new THREE.Group(); tiltGroup.rotation.x = rad(-tilt);
+      tiltGroup.add(stem);
+      group.add(tiltGroup);
+      holder.add(group);
+    }
+
+    function animate(){
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    function applyBasic(){
+      shinLen.value = BASIC.shin.len; shinTilt.value = BASIC.shin.tilt; shinYaw.value = BASIC.shin.yaw;
+      soeLen.value  = BASIC.soe.len;  soeTilt.value  = BASIC.soe.tilt;  soeYaw.value  = BASIC.soe.yaw;
+      hikLen.value  = BASIC.hik.len;  hikTilt.value  = BASIC.hik.tilt;  hikYaw.value  = BASIC.hik.yaw;
+    }
+
+    async function syncToScene(){
+      await setPart('shin', selShin.value, parseFloat(shinLen.value), parseFloat(shinTilt.value), parseFloat(shinYaw.value), 0x5B8DEF);
+      await setPart('soe',  selSoe.value,  parseFloat(soeLen.value),  parseFloat(soeTilt.value),  parseFloat(soeYaw.value),  0x4DB380);
+      await setPart('hik',  selHik.value,  parseFloat(hikLen.value),  parseFloat(hikTilt.value),  parseFloat(hikYaw.value),  0xE89DA6);
+    }
+
+    document.getElementById('basicBtn').onclick=()=>{
+      applyBasic(); syncToScene();
+      setStatus('基本スタイルを適用しました');
+    };
+    document.getElementById('exportBtn').onclick=()=>{
+      const plan = {
+        style:'basic',
+        materials:{
+          shin:{plantId: selShin.value, length:+shinLen.value, tiltDeg:+shinTilt.value, yawDeg:+shinYaw.value},
+          soe: {plantId: selSoe.value,  length:+soeLen.value,  tiltDeg:+soeTilt.value,  yawDeg:+soeYaw.value},
+          hik: {plantId: selHik.value,  length:+hikLen.value,  tiltDeg:+hikTilt.value,  yawDeg:+hikYaw.value},
+        },
+        meta:{ createdAt: new Date().toISOString(), note:'真・副・控の基本提案（相対長）' }
+      };
+      const blob = new Blob([JSON.stringify(plan,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), {href:url, download:`ikebana_plan_${Date.now()}.json`});
+      a.click(); URL.revokeObjectURL(url);
+      setStatus('プランJSONを書き出しました', 'ok');
+    };
+
+    // 初期化
+    applyBasic(); syncToScene();
+    setStatus('初期化完了：左のリストやセレクトから植物を割り当ててください');
+    selShin.onchange=selSoe.onchange=selHik.onchange=syncToScene;
+    shinLen.oninput=shinTilt.oninput=shinYaw.oninput=syncToScene;
+    soeLen.oninput=soeTilt.oninput=soeYaw.oninput=syncToScene;
+    hikLen.oninput=hikTilt.oninput=hikYaw.oninput=syncToScene;
+  </script>
+</body>
+</html>
