@@ -85,8 +85,9 @@
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
     import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/controls/OrbitControls.js';
     import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/DRACOLoader.js';
     import { MeshoptDecoder } from 'https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_decoder.module.js';
-
+    
     // ---------- データ（models/*.glb が無ければフォールバック表示） ----------
     const PLANTS = [
       { id:'nikko-kisuge', name:'ニッコウキスゲ（禅庭花）', latin:'Hemerocallis dumortieri var. esculenta', tags:['草花','黄色','初夏','地域シンボル'], region:'霧ヶ峰・車山', season:['summer'], glb:'models/nikko_kisuge.glb', facts:['霧ヶ峰の初夏を象徴する花','花は一日花'] },
@@ -183,9 +184,13 @@
     const grid = new THREE.GridHelper(3, 30, 0x666666, 0x333333); scene.add(grid);
 
     const loader = new GLTFLoader();
-    if(typeof loader.setMeshoptDecoder === 'function'){
+    if (typeof loader.setMeshoptDecoder === 'function') {
       loader.setMeshoptDecoder(MeshoptDecoder);
     }
+    // Enable Draco-compressed glTF support (in case your GLB was exported with Draco)
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/libs/draco/');
+    loader.setDRACOLoader(dracoLoader);
     const gltfCache = new Map();
 
     const tmpVec = new THREE.Vector3();
@@ -203,9 +208,11 @@
       if(!gltfCache.has(url)){
         gltfCache.set(url, loader.loadAsync(url).catch(err=>{
           gltfCache.delete(url);
+          console.error('GLB preload failed (cache stage):', url, err);
           throw err;
         }));
       }
+      setStatus(`モデル読込中: ${url}`);
       const gltf = await gltfCache.get(url);
       const src = gltf?.scene || gltf?.scenes?.[0];
       return src ? src.clone(true) : null;
